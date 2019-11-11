@@ -1,0 +1,8 @@
+# IDE Specific
+.vscode/
+
+# Project specific
+admin/
+out/
+*.txt
+*.docx
