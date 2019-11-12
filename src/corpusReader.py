@@ -26,87 +26,93 @@ data_dir = args.corpus_path if args.corpus_path is not None else "data"
 try:
     dev_path = Path(data_dir, data_files["dev"])
     print(f"Reading dev-set from: {dev_path}")
-    dev_set = pd.read_table(
-        dev_path,
-        error_bad_lines=False,
-        header=0,
-        names=["id", "s1", "s2", "gold"],
-        dtype={
-            "id": object,
-            "Sentence1": object,
-            "Sentence2": object,
-            "Gold Tag": int,
-        },
-    )
+    dev = []
+    rows = 0
     with open(dev_path) as dev_fh:
-        raw_pairs = len(dev_fh.readlines()) - 1
+        next(dev_fh)
+        for line in dev_fh.readlines():
+            rows += 1
+            cleaned = []
+            for item in line.split("\t"):
+                clean = item.split("\n") # Clean hanging new line trailing Gold Tag
+                cleaned.append(clean[0])
+            dev.append(cleaned)
+
+    dev_set = pd.DataFrame(dev, columns=["id", "s1", "s2", "gold"]).astype(
+        dtype={"id": object, "s1": object, "s2": object, "gold": int,}
+    )
 
 except FileNotFoundError:
     print(f"Error: No such data file at found at {dev_path}")
 
-drop_dev_set = dev_set.dropna()
-pairs_omitted = raw_pairs - drop_dev_set.shape[0]
+dev_set = dev_set.dropna()
+pairs_omitted = rows - dev_set.shape[0]
 print(dev_set.head())
-print(f"Raw dev DF shape: {dev_set.shape}")
-print(f"NA dropped dev DF shape: {drop_dev_set.shape}")
-print(f"Dev Pairs Omitted: {pairs_omitted} = {raw_pairs} - {drop_dev_set.shape[0]}")
+print(f"Dev DF shape: {dev_set.shape}")
+print(f"Dev Pairs Omitted: {pairs_omitted} = {rows} - {dev_set.shape[0]}")
 
 try:
     train_path = Path(data_dir, data_files["train"])
-    print(f"\nReading train-set from: {train_path}")
-    train_set = pd.read_table(
-        train_path,
-        error_bad_lines=False,
-        header=0,
-        names=["id", "s1", "s2", "gold"],
-        dtype={
-            "id": object,
-            "Sentence1": object,
-            "Sentence2": object,
-            "Gold Tag": int,
-        },
-    )
+    print(f"Reading train-set from: {train_path}")
+    train = []
+    rows = 0
     with open(train_path) as train_fh:
-        raw_pairs = len(train_fh.readlines()) - 1
+        next(train_fh)
+        for line in train_fh.readlines():
+            rows += 1
+            cleaned = []
+            for item in line.split("\t"):
+                clean = item.split("\n") # Clean hanging new line trailing Gold Tag
+                if clean[0]:
+                    cleaned.append(clean[0])
+            train.append(cleaned)
+    
+    train_set = pd.DataFrame(train, columns=["id", "s1", "s2", "gold"]).astype(
+        dtype={"id": object, "s1": object, "s2": object, "gold": int,}
+    )
 
 except FileNotFoundError:
     print(f"Error: No such data file at found at {train_path}")
 
-drop_train_set = train_set.dropna()
-pairs_omitted = raw_pairs - drop_train_set.shape[0]
+train_set = train_set.dropna()
+pairs_omitted = rows - train_set.shape[0]
 print(train_set.head())
-print(f"Raw train DF shape: {train_set.shape}")
-print(f"NA dropped train DF shape: {drop_train_set.shape}")
-print(f"Train Pairs Omitted: {pairs_omitted} = {raw_pairs} - {drop_train_set.shape[0]}")
+print(f"Train DF shape: {train_set.shape}")
+print(f"Train Pairs Omitted: {pairs_omitted} = {rows} - {train_set.shape[0]}")
 
 try:
     test_path = Path(data_dir, data_files["test"])
     print(f"\nReading test-set from: {test_path}")
-    test_set = pd.read_table(
-        test_path,
-        error_bad_lines=False,
-        header=0,
-        names=["id", "s1", "s2"],
-        dtype={"id": object, "Sentence1": object, "Sentence2": object},
-    )
+    test = []
+    rows = 0
     with open(test_path) as test_fh:
-        raw_pairs = len(test_fh.readlines()) - 1
+        next(test_fh)
+        for line in test_fh.readlines():
+            rows += 1
+            cleaned = []
+            for item in line.split("\t"):
+                clean = item.split("\n") # Clean hanging new line trailing Gold Tag
+                cleaned.append(clean[0])
+            test.append(cleaned)
+
+    test_set = pd.DataFrame(test, columns=["id", "s1", "s2"]).astype(
+        dtype={"id": object, "s1": object, "s2": object,}
+    )
 
 except FileNotFoundError:
     print(f"Error: No such data file at found at {test_path}")
 
-drop_test_set = test_set.dropna()
-pairs_omitted = raw_pairs - drop_test_set.shape[0]
+test_set = test_set.dropna()
+pairs_omitted = rows - test_set.shape[0]
 print(test_set.head())
-print(f"Raw test DF shape: {train_set.shape}")
-print(f"NA dropped test DF shape: {drop_test_set.shape}")
-print(f"Test Pairs Omitted: {pairs_omitted} = {raw_pairs} - {drop_test_set.shape[0]}")
+print(f"Test DF shape: {test_set.shape}")
+print(f"Test Pairs Omitted: {pairs_omitted} = {rows} - {test_set.shape[0]}")
 
 Path("out").mkdir(exist_ok=True)
 try:
-    drop_dev_set.to_csv(str(Path("out/dev_df.txt")), sep="\t")
-    drop_train_set.to_csv(str(Path("out/train_df.txt")), sep="\t")
-    drop_test_set.to_csv(str(Path("out/test_df.txt")), sep="\t")
+    dev_set.to_csv(str(Path("out/dev.csv")))
+    train_set.to_csv(str(Path("out/train.csv")))
+    test_set.to_csv(str(Path("out/test.csv")))
 
 except IOError:
     print("Error: Log write failed")
