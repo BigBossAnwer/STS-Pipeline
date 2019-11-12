@@ -35,7 +35,7 @@ try:
             "id": object,
             "Sentence1": object,
             "Sentence2": object,
-            "Gold Tag": pd.Int64Dtype(),
+            "Gold Tag": int,
         },
     )
     with open(dev_path) as dev_fh:
@@ -63,7 +63,7 @@ try:
             "id": object,
             "Sentence1": object,
             "Sentence2": object,
-            "Gold Tag": pd.Int64Dtype(),
+            "Gold Tag": int,
         },
     )
     with open(train_path) as train_fh:
