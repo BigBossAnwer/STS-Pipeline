@@ -1,7 +1,11 @@
+# Python
+__pycache__/
+
 # IDE Specific
 .vscode/
 
 # Project specific
 admin/
+log/
 out/
 *.docx
