@@ -16,7 +16,7 @@ def read_data(which_sets, corpus_path=None, log=False):
             print(f"\nReading dev-set from: {dev_path}")
             dev = []
             rows = 0
-            with open(dev_path) as dev_fh:
+            with open(dev_path, encoding="utf8") as dev_fh:
                 next(dev_fh) # Skip header
                 for line in dev_fh.readlines():
                     rows += 1
@@ -47,7 +47,7 @@ def read_data(which_sets, corpus_path=None, log=False):
             print(f"\nReading train-set from: {train_path}")
             train = []
             rows = 0
-            with open(train_path) as train_fh:
+            with open(train_path, encoding="utf8") as train_fh:
                 next(train_fh) # Skip header
                 for line in train_fh.readlines():
                     rows += 1
@@ -79,7 +79,7 @@ def read_data(which_sets, corpus_path=None, log=False):
             print(f"\nReading test-set from: {test_path}")
             test = []
             rows = 0
-            with open(test_path) as test_fh:
+            with open(test_path, encoding="utf8") as test_fh:
                 next(test_fh) # Skip header
                 for line in test_fh.readlines():
                     rows += 1

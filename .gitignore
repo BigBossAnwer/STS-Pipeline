@@ -4,7 +4,7 @@ __pycache__/
 # IDE Specific
 .vscode/
 
-# Project specific
+# Project Specific
 admin/
 log/
 out/
