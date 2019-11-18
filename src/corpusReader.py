@@ -5,15 +5,14 @@ from pathlib import Path
 import pandas as pd
 
 
-def read_data(which_sets, corpus_path=None, log=False):
+def read_data(which_sets, corpus_path="data", log=False):
     data_files = {"dev": "dev-set.txt", "train": "train-set.txt", "test": "test-set.txt"}
-    data_dir = corpus_path if corpus_path is not None else "data"
     data_frames = {}
 
     if "dev" in which_sets:
         try:
-            dev_path = Path(data_dir, data_files["dev"])
-            print(f"\nReading dev-set from: {dev_path}")
+            dev_path = Path(corpus_path, data_files["dev"])
+            print(f"Reading dev-set from: {dev_path}")
             dev = []
             rows = 0
             with open(dev_path, encoding="utf8") as dev_fh:
@@ -33,19 +32,21 @@ def read_data(which_sets, corpus_path=None, log=False):
             dev_set = dev_set.dropna()
             pairs_omitted = rows - dev_set.shape[0]
             print(f"Dev DF shape: {dev_set.shape}")
-            print(f"Dev Pairs Omitted: {pairs_omitted} = {rows} - {dev_set.shape[0]}")
+            print(f"Dev Pairs Omitted: {pairs_omitted} = {rows} - {dev_set.shape[0]}\n")
             data_frames["dev"] = dev_set
 
         except FileNotFoundError:
-            print(f"Error: No such data file at found at {dev_path}")
+            print(
+                f"Error: No such data file at found at {str(Path(Path.cwd(), dev_path))}\n"
+            )
         except:
             print("Unexpected error: ", sys.exc_info()[0])
             raise
 
     if "train" in which_sets:
         try:
-            train_path = Path(data_dir, data_files["train"])
-            print(f"\nReading train-set from: {train_path}")
+            train_path = Path(corpus_path, data_files["train"])
+            print(f"Reading train-set from: {train_path}")
             train = []
             rows = 0
             with open(train_path, encoding="utf8") as train_fh:
@@ -66,19 +67,23 @@ def read_data(which_sets, corpus_path=None, log=False):
             train_set = train_set.dropna()
             pairs_omitted = rows - train_set.shape[0]
             print(f"Train DF shape: {train_set.shape}")
-            print(f"Train Pairs Omitted: {pairs_omitted} = {rows} - {train_set.shape[0]}")
+            print(
+                f"Train Pairs Omitted: {pairs_omitted} = {rows} - {train_set.shape[0]}\n"
+            )
             data_frames["train"] = train_set
 
         except FileNotFoundError:
-            print(f"Error: No such data file at found at {train_path}")
+            print(
+                f"Error: No such data file at found at {str(Path(Path.cwd(), train_path))}\n"
+            )
         except:
             print("Unexpected error: ", sys.exc_info()[0])
             raise
 
     if "test" in which_sets:
         try:
-            test_path = Path(data_dir, data_files["test"])
-            print(f"\nReading test-set from: {test_path}")
+            test_path = Path(corpus_path, data_files["test"])
+            print(f"Reading test-set from: {test_path}")
             test = []
             rows = 0
             with open(test_path, encoding="utf8") as test_fh:
@@ -98,11 +103,13 @@ def read_data(which_sets, corpus_path=None, log=False):
             test_set = test_set.dropna()
             pairs_omitted = rows - test_set.shape[0]
             print(f"Test DF shape: {test_set.shape}")
-            print(f"Test Pairs Omitted: {pairs_omitted} = {rows} - {test_set.shape[0]}")
+            print(f"Test Pairs Omitted: {pairs_omitted} = {rows} - {test_set.shape[0]}\n")
             data_frames["test"] = test_set
 
         except FileNotFoundError:
-            print(f"Error: No such data file at found at {test_path}")
+            print(
+                f"Error: No such data file at found at {str(Path(Path.cwd(), test_path))}\n"
+            )
         except:
             print("Unexpected error: ", sys.exc_info()[0])
             raise
@@ -125,10 +132,10 @@ def read_data(which_sets, corpus_path=None, log=False):
         return data_frames
 
 
-def log_frame(data_frame, name, tag):
+def log_frame(df, name, tag):
     try:
         Path("log").mkdir(exist_ok=True)
-        data_frame.to_csv(str(Path("log", name + "_" + tag + ".csv")))
+        df.to_csv(str(Path("log", name + "_" + tag + ".csv")))
 
     except IOError:
         print("Error: Log write failed")
@@ -155,12 +162,19 @@ def main():
     parser.add_argument(
         "-l",
         "--log",
-        help=("Suppress dataframe logging to " + str(Path("out"))),
+        help=("Log produced dataframes to " + str(Path("log/*"))),
         action="store_true",
     )
     args = parser.parse_args()
 
-    read_data(["dev", "test", "train"], args.corpus_path, args.log)
+    if args.corpus_path is None:
+        dfs = read_data(["dev", "test", "train"], log=args.log)
+    else:
+        dfs = read_data(["dev", "test", "train"], args.corpus_path, args.log)
+
+    for frame in dfs.keys():
+        print(frame[0].upper() + frame[1:] + " head: ")
+        print(dfs[frame].head(), "\n")
 
 
 if __name__ == "__main__":
