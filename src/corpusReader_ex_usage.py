@@ -7,7 +7,7 @@ from corpusReader import read_data
 #     log=True/False # optional, logs dataframes to log/*.csv
 #     )
 frames = read_data(["train", "test"])
-dev = read_data(which_sets=["dev"])["dev"] # another access pattern
+dev = read_data(which_sets=["dev"]) # another access pattern
 train, test = frames["train"], frames["test"]
 
 print(train.head())

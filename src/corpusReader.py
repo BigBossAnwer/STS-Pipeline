@@ -17,12 +17,13 @@ def read_data(which_sets, corpus_path=None, log=False):
             dev = []
             rows = 0
             with open(dev_path, encoding="utf8") as dev_fh:
-                next(dev_fh) # Skip header
+                next(dev_fh)  # Skip header
                 for line in dev_fh.readlines():
                     rows += 1
                     cleaned = []
                     for item in line.split("\t"):
-                        clean = item.split("\n") # Clean hanging new line trailing Gold Tag
+                        # Clean hanging new line trailing Gold Tag
+                        clean = item.split("\n")
                         cleaned.append(clean[0])
                     dev.append(cleaned)
 
@@ -48,16 +49,17 @@ def read_data(which_sets, corpus_path=None, log=False):
             train = []
             rows = 0
             with open(train_path, encoding="utf8") as train_fh:
-                next(train_fh) # Skip header
+                next(train_fh)  # Skip header
                 for line in train_fh.readlines():
                     rows += 1
                     cleaned = []
                     for item in line.split("\t"):
-                        clean = item.split("\n") # Clean hanging new line trailing Gold Tag
+                        # Clean hanging new line trailing Gold Tag
+                        clean = item.split("\n")
                         if clean[0]:
                             cleaned.append(clean[0])
                     train.append(cleaned)
-            
+
             train_set = pd.DataFrame(train, columns=["id", "s1", "s2", "gold"]).astype(
                 dtype={"id": object, "s1": object, "s2": object, "gold": int,}
             )
@@ -80,12 +82,13 @@ def read_data(which_sets, corpus_path=None, log=False):
             test = []
             rows = 0
             with open(test_path, encoding="utf8") as test_fh:
-                next(test_fh) # Skip header
+                next(test_fh)  # Skip header
                 for line in test_fh.readlines():
                     rows += 1
                     cleaned = []
                     for item in line.split("\t"):
-                        clean = item.split("\n") # Clean hanging new line trailing Gold Tag
+                        # Clean hanging new line trailing Gold Tag
+                        clean = item.split("\n")
                         cleaned.append(clean[0])
                     test.append(cleaned)
 
@@ -103,7 +106,7 @@ def read_data(which_sets, corpus_path=None, log=False):
         except:
             print("Unexpected error: ", sys.exc_info()[0])
             raise
-    
+
     if log:
         try:
             Path("log").mkdir(exist_ok=True)
@@ -115,8 +118,24 @@ def read_data(which_sets, corpus_path=None, log=False):
         except:
             print("Unexpected error: ", sys.exc_info()[0])
             raise
-    
-    return data_frames
+
+    if len(which_sets) == 1:
+        return next(iter(data_frames.values()))  # returns first (and only) dataframe
+    else:
+        return data_frames
+
+
+def log_frame(data_frame, name, tag):
+    try:
+        Path("log").mkdir(exist_ok=True)
+        data_frame.to_csv(str(Path("log", name + "_" + tag + ".csv")))
+
+    except IOError:
+        print("Error: Log write failed")
+    except:
+        print("Unexpected error: ", sys.exc_info()[0])
+        raise
+
 
 def main():
     description = (
@@ -136,15 +155,13 @@ def main():
     parser.add_argument(
         "-l",
         "--log",
-        help=(
-            "Suppress dataframe logging to "
-            + str(Path("out"))
-        ),
-        action="store_true"
+        help=("Suppress dataframe logging to " + str(Path("out"))),
+        action="store_true",
     )
     args = parser.parse_args()
-    
+
     read_data(["dev", "test", "train"], args.corpus_path, args.log)
 
-if __name__== "__main__":
-  main()
+
+if __name__ == "__main__":
+    main()
