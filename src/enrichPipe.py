@@ -78,9 +78,8 @@ def main():
     else:
         dfs = read_data(["dev", "train", "test"], args.corpus_path, args.log)
 
-    preprocess(dfs["dev"], name="dev", tag="enriched", log=args.log)
-    preprocess(dfs["train"], name="train", tag="enriched", log=args.log)
-    preprocess(dfs["test"], name="test", tag="enriched", log=args.log)
+    for frame in dfs.keys():
+        preprocess(dfs[frame], name=frame, tag="enriched", log=args.log)
 
     for frame in dfs.keys():
         print("Enriched " + frame + " head: ")
