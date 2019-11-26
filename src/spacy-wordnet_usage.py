@@ -59,3 +59,29 @@ s = wn.synsets("walk", wn.VERB)[0]
 brown_ic = wordnet_ic.ic("ic-brown.dat")
 print(s.lin_similarity(t, brown_ic))
 
+
+# Similarity score as described in Pawar, 2018
+import numpy as np
+
+s1 = wn.synset("car.n.01")
+s2 = wn.synset("motorcycle.n.01")
+subsumer = s1.lowest_common_hypernyms(s2, simulate_root=True)[0]
+h = subsumer.max_depth() + 1
+syn1_dist_subsumer = s1.shortest_path_distance(subsumer, simulate_root=True)
+syn2_dist_subsumer = s2.shortest_path_distance(subsumer, simulate_root=True)
+## same thing as two prior lines:
+# l = s1.shortest_path_distance(s2)
+l = syn1_dist_subsumer + syn2_dist_subsumer
+print(f"subsumer = {subsumer}")
+print(f"l = {l}")
+print(f"h = {h}")
+alpha = 0.1
+beta = 0.45
+f = np.exp(-alpha * l)
+g1 = np.exp(beta * h)
+g2 = np.exp(-beta * h)
+g = (g1 - g2) / (g1 + g2)
+sim = f * g
+print(f"f = {f}")
+print(f"g = {g}")
+print(f"Sim = {sim}")
