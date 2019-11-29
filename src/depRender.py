@@ -1,6 +1,5 @@
 import json
 import sys
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -8,7 +7,6 @@ import spacy
 from spacy import displacy
 
 from corpusReader import read_data
-from enrichPipe import preprocess
 
 
 def rmse(predictions, targets):
@@ -16,15 +14,15 @@ def rmse(predictions, targets):
 
 
 def accuracy(predictions, targets):
-    p = 0
+    count_pos = 0
     for idx, gold in enumerate(targets):
-        predcition = predictions[idx]
-        if gold == predcition:
-            p += 1
-    return float(p) / len(predictions)
+        if gold == predictions[idx]:
+            count_pos += 1
+
+    return float(count_pos) / len(targets)
 
 
-# Scraped from evaluation.py
+# Scraped from evaluation.py, returns recall, precision, f1
 def get_scores(predictions, targets, prec=3):
     label_set = [1, 2, 3, 4, 5]
     classification_report = {}
@@ -74,90 +72,137 @@ nlp = spacy.load("en_core_web_sm")
 dev = read_data(["dev"])
 # dev = preprocess(dev, name="dev", tag="enriched", log=True)
 
-docs = []
 cols = ["s1", "s2"]
+docs_s1 = []
+docs_s2 = []
+golds = []
+i = 0
+scored = False
+# # Inefficient
+# for i in range(dev.shape[0]):
+#     doc = [nlp(dev[col].iloc[i]) for col in cols]
+#     score = dev["gold"].iloc[i]
+#     docs.append([doc[0], doc[1], score])
+# Efficient:
+for col in cols:
+    for doc in nlp.pipe(dev[col].values, disable=["tagger"], batch_size=50, n_threads=4):
+        if doc.is_parsed:
+            if col == "s1":
+                docs_s1.append(doc)
+            if col == "s2":
+                docs_s2.append(doc)
+            if not scored:
+                golds.append(dev["gold"].iloc[i])
+                i += 1
+        # Ensure equal length lists regardless of parse
+        else:
+            if col == "s1":
+                docs_s1.append(None)
+            if col == "s2":
+                docs_s2.append(None)
+            if not scored:
+                golds.append(None)
+                i += 1
+    scored = True
 
-for i in range(dev.shape[0]):
-    doc = [nlp(dev[col].iloc[i]) for col in cols]
-    score = dev["gold"].iloc[i]
-    docs.append([doc[0], doc[1], score])
-
-sc0 = []
-# Bad weightings:
-sc1 = []
-sc2 = []
-sc3 = []
+score_0 = []
+score_1 = []
+score_2 = []
+score_3 = []
 count = 0
-for doc in docs:
+for doc in zip(docs_s1, docs_s2, golds):
     s1 = doc[0]
     s2 = doc[1]
     gold = doc[2]
-    s1_root = [token for token in s1 if token.dep_ == "ROOT"][0]
-    s2_root = [token for token in s2 if token.dep_ == "ROOT"][0]
-    s1_subjects = list(s1_root.lefts) + list(s1_root.rights)
-    s2_subjects = list(s2_root.lefts) + list(s2_root.rights)
-    s1_subjects = set([token.text for token in s1_subjects] + [s1_root.lemma_])
-    s2_subjects = set([token.text for token in s2_subjects] + [s2_root.lemma_])
-    overlap = s1_subjects.intersection(s2_subjects)
-    total = s1_subjects.union(s2_subjects)
-    diff = total.difference(overlap)
-    if len(total) == 0:
-        # 0 subject overlap counter
-        count += 1
-        coverage0, coverage1, coverage2, coverage3 = (0, 0, 0, 0)
+    if s1 is None or s2 is None or gold is None:
+        continue
     else:
-        # Weighting pulled out of my ass, think it works out to add 1
-        coverage0 = (len(overlap) + len(total)) / (2 * len(total))
-        # Alt1. Weighting pulled out of my ass
-        coverage1 = (len(overlap) + (0.5 * len(total))) / (2 * len(total))
-        # Alt2. weighting pulled out of my ass
-        coverage3 = (len(overlap) + len(diff)) / (2 * len(total))
-        # Raw
-        coverage2 = len(overlap) / len(total)
-    coverage = [coverage0, coverage1, coverage2, coverage3]
-    pushed = [((val * 4) + 1) for val in coverage]
-    sc0.append(pushed[0])
-    # Bad weightings:
-    sc1.append(pushed[1])
-    sc2.append(pushed[2])
-    sc3.append(pushed[3])
-    # # Debug:
-    # print(f"gold: {gold}")
-    # print(f"s1 : {s1}")
-    # print(f"s2: {s2}")
-    # print(f"roots: {s1_root}, {s2_root}")
-    # print(f"s1 subjects: {s1_subjects}")
-    # print(f"s2 subjects: {s2_subjects}")
-    # print(f"complete set: {total}")
-    # print(f"overlap: {overlap}, difference: {diff}")
-    # print(f"raw scores: {coverage} scaled scores: {np.ceil(pushed)}")
-    # print("```")
+        s1_root = [token for token in s1 if token.dep_ == "ROOT"][0]
+        s2_root = [token for token in s2 if token.dep_ == "ROOT"][0]
+        s1_subjects = list(s1_root.lefts) + list(s1_root.rights)
+        s2_subjects = list(s2_root.lefts) + list(s2_root.rights)
+        s1_subjects = set(
+            [token.lemma_ for token in s1_subjects if not token.is_stop]
+            + [s1_root.lemma_]
+        )
+        s2_subjects = set(
+            [token.lemma_ for token in s2_subjects if not token.is_stop]
+            + [s2_root.lemma_]
+        )
+        overlap = s1_subjects.intersection(s2_subjects)
+        total = s1_subjects.union(s2_subjects)
+        diff = total.difference(overlap)
+        if len(total) == 0:
+            # 0 subject overlap counter
+            count += 1
+            coverage0, coverage1, coverage2, coverage3 = (0, 0, 0, 0)
+        else:
+            # Weighting pulled out of my ass, think it works out to add 1
+            coverage0 = (len(overlap) + len(total)) / (2 * len(total))
+            # Alt1. weighting pulled out of my ass
+            coverage1 = (len(overlap) + (0.5 * len(total))) / (1.5 * len(total))
+            # Alt2. weighting pulled out of my ass
+            coverage2 = (len(overlap) + len(diff)) / (len(diff) + len(total))
+            # Raw
+            coverage3 = len(overlap) / len(total)
+        coverage = [coverage0, coverage1, coverage2, coverage3]
+        scaled = [((val * 4) + 1) for val in coverage]
+        score_0.append(scaled[0])
+        score_1.append(scaled[1])
+        score_2.append(scaled[2])
+        score_3.append(scaled[3])
+        # # Debug:
+        # print(f"gold: {gold}")
+        # print(f"s1 : {s1}")
+        # print(f"s2: {s2}")
+        # print(f"roots: {s1_root}, {s2_root}")
+        # print(f"s1 subjects: {s1_subjects}")
+        # print(f"s2 subjects: {s2_subjects}")
+        # print(f"complete set: {total}")
+        # print(f"overlap: {overlap}, difference: {diff}")
+        # print(f"raw scores: {coverage} scaled scores: {np.ceil(scaled)}")
+        # print("```")
 
-golds = np.asarray([doc[2] for doc in docs])
-sc0 = np.floor(sc0)
+golds = np.asarray(golds)
+score_0 = np.floor(score_0)
+score_1 = np.floor(score_1)
+score_2 = np.floor(score_2)
+score_3 = np.floor(score_3)
+print("Gold stats: ")
+print(pd.DataFrame(golds, columns=["Tags"]).describe().T)
+print("\nCoverage0 stats: ")
+print(pd.DataFrame(score_0, columns=["Tags"]).describe().T)
+print("\nCoverage1 stats: ")
+print(pd.DataFrame(score_1, columns=["Tags"]).describe().T)
+print("\nCoverage2 stats: ")
+print(pd.DataFrame(score_2, columns=["Tags"]).describe().T)
+print("\nCoverage3 stats: ")
+print(pd.DataFrame(score_3, columns=["Tags"]).describe().T)
+
+gold_len = len(golds)
+assert (
+    gold_len == len(score_0)
+    and gold_len == len(score_1)
+    and gold_len == len(score_2)
+    and gold_len == len(score_3)
+)
+
+print(f"\nCoverage0 rmse: {rmse(score_0, golds)}, accuracy {accuracy(score_0, golds)}")
 # Bad weightings:
-sc1 = np.floor(sc1)
-sc2 = np.floor(sc2)
-sc3 = np.floor(sc3)
-print(f"Gold stats: {pd.DataFrame(golds).describe()}")
-print(f"\nCoverage0 stats: {pd.DataFrame(sc0).describe()}")
-# Bad weightings:
-print(f"\nCoverage1 stats: {pd.DataFrame(sc1).describe()}")
-print(f"\nCoverage2 stats: {pd.DataFrame(sc2).describe()}")
-print(f"\nCoverage3 stats: {pd.DataFrame(sc3).describe()}")
+print(f"Coverage1 rmse: {rmse(score_1, golds)}, accuracy {accuracy(score_1, golds)}")
+print(f"Coverage2 rmse: {rmse(score_2, golds)}, accuracy {accuracy(score_2, golds)}")
+print(f"Coverage3 rmse: {rmse(score_3, golds)}, accuracy {accuracy(score_3, golds)}")
+print(f"# sentences w/ no shared nodes in root tree: {count}")
+print("\nCoverage0 metrics:")
+print(json.dumps(get_scores(score_0, golds), indent=2))
+print("\nCoverage1 metrics:")
+print(json.dumps(get_scores(score_1, golds), indent=2))
+print("\nCoverage2 metrics:")
+print(json.dumps(get_scores(score_2, golds), indent=2))
+print("\nCoverage3 metrics:")
+print(json.dumps(get_scores(score_3, golds), indent=2))
 
-glen = len(golds)
-assert glen == len(sc0) and glen == len(sc1) and glen == len(sc2) and glen == len(sc3)
-
-print(f"\ncoverage0 rmse: {rmse(sc0, golds)}, accuracy {accuracy(sc0, golds)}")
-# Bad weightings:
-print(f"coverage1 rmse: {rmse(sc1, golds)}, accuracy {accuracy(sc1, golds)}")
-print(f"coverage2 rmse: {rmse(sc2, golds)}, accuracy {accuracy(sc2, golds)}")
-print(f"coverage3 rmse: {rmse(sc3, golds)}, accuracy {accuracy(sc3, golds)}")
-print(f"Num sentences w/ no shared nodes in root tree: {count}")
-print(json.dumps(get_scores(sc0, golds)))
-
-# LocalHost Serve:
+# # Dependency Parse Tree LocalHost Serve:
 # displacy.serve(docs, style="dep")
 
 # # Save to .svg

@@ -9,3 +9,4 @@ admin/
 log/
 out/
 *.docx
+*.todo
