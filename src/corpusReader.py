@@ -173,9 +173,14 @@ def main():
         dfs = read_data(["dev", "test", "train"], args.corpus_path, args.log)
 
     for frame in dfs.keys():
-        print(frame[0].upper() + frame[1:] + " head: ")
+        frame_cap = frame[0].upper() + frame[1:]
+        print(frame_cap + " head: ")
         print(dfs[frame].head(), "\n")
-
+        if frame in ["dev", "train"]: 
+            print(frame_cap + " gold tag stats: ")
+            print(dfs[frame]['gold'].describe(), "\n")
+            print(frame_cap + " gold tag counts: ")
+            print(dfs[frame]['gold'].value_counts(), "\n")
 
 if __name__ == "__main__":
     main()
