@@ -3,10 +3,12 @@ from pathlib import Path
 
 import pandas
 import spacy
+from spacy import displacy
 
 from corpusReader import log_frame, read_data
 
-
+# Enriches a dataframe such that all documents (s1, s2) have their associated
+# tokens, lemmas, POS tags and spacy docs grafted in as columns
 def preprocess(df, name=None, tag=None, log=False):
     nlp = spacy.load("en_core_web_sm")
 
@@ -18,27 +20,31 @@ def preprocess(df, name=None, tag=None, log=False):
     parse_cols = ["s1", "s2"]
     for col in parse_cols:
         tokens = []
-        lemma = []
+        lemmas = []
         pos = []
+        docs = []
         parse_fail = 0
 
         for doc in nlp.pipe(df[col].values, batch_size=50, n_threads=4):
-            if doc.is_parsed:
+            if doc.is_tagged:
                 tokens.append([n.text for n in doc])
-                lemma.append([n.lemma_ for n in doc])
+                lemmas.append([n.lemma_ for n in doc])
                 pos.append([n.pos_ for n in doc])
+                docs.append(doc)
             else:
                 # Ensure parse lists have the same number of entries as the original
                 #   Dataframe regardless of parse failure
                 parse_fail += 1
                 tokens.append(None)
-                lemma.append(None)
+                lemmas.append(None)
                 pos.append(None)
+                docs.append(None)
 
         print(f"{col.upper()} parse failures: {parse_fail}")
         df[col + "_tokens"] = tokens
-        df[col + "_lemma"] = lemma
+        df[col + "_lemmas"] = lemmas
         df[col + "_pos"] = pos
+        df[col + "_docs"] = docs
 
     if log:
         if name is None or tag is None:
@@ -48,6 +54,44 @@ def preprocess(df, name=None, tag=None, log=False):
     print()
 
     return df
+
+
+# Simply returns spacy processed documents as a list of tuples=(s1, s2, gold)
+# Saves multiple passes through the spacy NLP pipe / df overhead
+def preprocess_raw(df):
+    nlp = spacy.load("en_core_web_sm")
+
+    print("Enriching data from dataframe...")
+
+    parse_cols = ["s1", "s2"]
+    s1_docs = []
+    s2_docs = []
+    golds = []
+    for col in parse_cols:
+        parse_fail = 0
+
+        for idx, doc in enumerate(nlp.pipe(df[col].values, batch_size=50, n_threads=4)):
+            if doc.is_parsed:
+                if col == "s1":
+                    s1_docs.append(doc)
+                    golds.append(df["gold"].iloc[idx])
+                else:
+                    s2_docs.append(doc)
+            else:
+                # Ensure parse lists have the same number of entries as the original
+                #   Dataframe regardless of parse failure
+                parse_fail += 1
+                if col == "s1":
+                    s1_docs.append(None)
+                    golds.append(None)
+                else:
+                    s2_docs.append(None)
+
+        print(f"{col.upper()} parse failures: {parse_fail}")
+
+    print()
+
+    return list(zip(s1_docs, s2_docs, golds))
 
 
 def main():
@@ -81,9 +125,28 @@ def main():
     for frame in dfs.keys():
         preprocess(dfs[frame], name=frame, tag="enriched", log=args.log)
 
+    s1_dep_docs = []
+    s2_dep_docs = []
     for frame in dfs.keys():
         print("Enriched " + frame + " head: ")
-        print(dfs[frame].head(), "\n")
+        print(dfs[frame].head(5), "\n")
+        tmp_list = list(dfs[frame]["s1_docs"])
+        s1_dep_docs += tmp_list[:3]
+        s1_dep_docs += tmp_list[-3:]
+        tmp_list = list(dfs[frame]["s2_docs"])
+        s2_dep_docs += tmp_list[:3]
+        s2_dep_docs += tmp_list[-3:]
+
+    options = {"compact": True, "color": "blue"}
+    docs = [val for pair in zip(s1_dep_docs, s2_dep_docs) for val in pair]
+    # Dependency Parse Tree Visualization LocalHost Serve:
+    displacy.serve(docs, style="dep", options=options)
+
+    # # Save to .svg
+    # svg = displacy.render(docs, style="dep", options=options)
+    # log_path = Path("log", "dep.svg")
+    # with log_path.open("w", encoding="utf-8") as dep_log:
+    #     dep_log.write(svg)
 
 
 if __name__ == "__main__":
