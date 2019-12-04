@@ -27,15 +27,10 @@ Within the desired venv, install project requirements with:
 pip install -U -r requirements.txt
 ```
 
-**To work with / run depTFIDFModel or depTFIDFModelTest**:
-
-```bash
-pip install -U -r requirements.large.txt
-```
-
 Finally, install the following NLTK wordnet data (again making sure to use the desired venv):
 
 ````bash
 python -m nltk.downloader wordnet
 python -m nltk.downloader omw
+python -m nltk.downloader popular
 ````
