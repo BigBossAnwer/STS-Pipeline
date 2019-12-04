@@ -160,27 +160,29 @@ def main():
         ),
     )
     parser.add_argument(
-        "-l",
-        "--log",
-        help=("Log produced dataframes to " + str(Path("log/*"))),
+        "-q",
+        "--quiet",
+        help=("Suppresses logging of produced log files to " + str(Path("log/*"))),
         action="store_true",
     )
     args = parser.parse_args()
+    log = not args.quiet
 
     if args.corpus_path is None:
-        dfs = read_data(["dev", "test", "train"], log=args.log)
+        dfs = read_data(["dev", "test", "train"], log=log)
     else:
-        dfs = read_data(["dev", "test", "train"], args.corpus_path, args.log)
+        dfs = read_data(["dev", "test", "train"], args.corpus_path, log)
 
     for frame in dfs.keys():
         frame_cap = frame[0].upper() + frame[1:]
         print(frame_cap + " head: ")
         print(dfs[frame].head(), "\n")
-        if frame in ["dev", "train"]: 
+        if frame in ["dev", "train"]:
             print(frame_cap + " gold tag stats: ")
-            print(dfs[frame]['gold'].describe(), "\n")
+            print(dfs[frame]["gold"].describe().to_frame().T, "\n")
             print(frame_cap + " gold tag counts: ")
-            print(dfs[frame]['gold'].value_counts(), "\n")
+            print(dfs[frame]["gold"].value_counts().to_frame().T, "\n")
+
 
 if __name__ == "__main__":
     main()

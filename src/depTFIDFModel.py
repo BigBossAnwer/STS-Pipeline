@@ -1,22 +1,27 @@
+import argparse
 import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import scipy.sparse
+from scipy.stats import pearsonr
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from corpusReader import read_data
+from corpusReader import log_frame, read_data
 from enrichPipe import preprocess_raw
 
 
 def rmse(predictions, targets):
+    assert len(predictions) == len(targets)
     return np.sqrt(((predictions - targets) ** 2).mean())
 
 
 def accuracy(predictions, targets):
+    assert len(predictions) == len(targets)
     count_pos = 0
-    for idx, gold in enumerate(targets):
-        if gold == predictions[idx]:
+    for predic, gold in zip(predictions, targets):
+        if predic == gold:
             count_pos += 1
 
     return float(count_pos) / len(targets)
@@ -87,28 +92,17 @@ def clean_tokens(tokens):
 def tfidf_fit_transform(docs):
     tfidfer = TfidfVectorizer(min_df=0, sublinear_tf=True, lowercase=False)
     tfidf_mat = tfidfer.fit_transform(docs)
-    (x, y, z) = scipy.sparse.find(tfidf_mat)
+    (x, _, z) = scipy.sparse.find(tfidf_mat)
     countings = np.bincount(x)
     sums = np.bincount(x, weights=z)
-    averages = sums / countings
-    avg_s = 0
-    avg_c = 0
-    for avg in averages:
-        avg_s += avg
-        avg_c += 1
-    average_tfidf = avg_s / avg_c
+    average_tfidf = np.mean(sums / countings)
 
     return tfidfer, tfidf_mat, average_tfidf
 
 
-def main():
-    dfs = read_data(["dev", "train"])
-    dev_docs = preprocess_raw(dfs["dev"])
-    train_docs = preprocess_raw(dfs["train"])
-    all_docs = dev_docs + train_docs
-
+def depFit_Predict(docs):
     cleaned_docs = []
-    for doc_tuple in all_docs:
+    for doc_tuple in docs:
         # doc_tuple looks like (s1 - spacy processed, s2 - spacy processed, gold)
         for doc in doc_tuple[:2]:
             cleaned_docs.append(" ".join(clean_tokens(doc)))
@@ -116,7 +110,7 @@ def main():
     tfidfer, tfidf_mat, average_tfidf = tfidf_fit_transform(cleaned_docs)
 
     predictions = []
-    for idx, doc_tuple in enumerate(all_docs):
+    for idx, doc_tuple in enumerate(docs):
         s1 = doc_tuple[0]
         s2 = doc_tuple[1]
         gold = doc_tuple[2]
@@ -170,9 +164,6 @@ def main():
                     total_raw_tfidf.append(average_tfidf)
             total_raw_score = np.sum(total_raw_tfidf)
 
-            # diff = total.difference(overlap)
-            # diff_raw = total_raw.difference(overlap_raw)
-
             # Use full lemmatized sentence TFIDF prediction in cases of "low" dependency tree
             # overlap probability. This"low"/"confidence_threshold" and weighting of
             # models in confident cases defined by hyper-parameter testing on the
@@ -188,31 +179,73 @@ def main():
 
             scaled = (prediction * 4) + 1
             predictions.append(scaled)
-            # # Debug:
-            # print(f"gold: {gold}")
-            # print(f"s1 : {s1}")
-            # print(f"s2: {s2}")
-            # print(f"complete set: {total} | {total_raw}")
-            # print(f"overlap: {overlap} | {overlap_raw}, difference: {diff} | {diff_raw}")
-            # print(f"raw prediction: {prediction} scaled prediction: {np.round(scaled)}")
-            # print("```")
 
-    golds = np.asarray([doc[2] for doc in all_docs])
     predictions = np.round(predictions)
-    print("Gold stats: ")
-    print(pd.DataFrame(golds, columns=["Tags"]).describe().T)
-    print("\nPrediction stats: ")
-    print(pd.DataFrame(predictions, columns=["Tags"]).describe().T)
 
-    gold_len = len(golds)
-    assert gold_len == len(predictions)
+    return predictions.tolist()
 
-    print(f"\nPrediction RMSE: {rmse(predictions, golds)}", end="")
-    print(f", Accuracy: {accuracy(predictions, golds)}")
-    print("\nPrediction metrics:")
-    print(json.dumps(get_scores(predictions, golds), indent=2))
+
+def main():
+    description = "TFIDF Weighted Dependency Tree Coverage STS Model"
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument(
+        "-c",
+        "--corpus_path",
+        help=(
+            str(Path("Path/To/Corpus/*-set.txt"))
+            + ", Default: "
+            + str(Path("data/*-set.txt"))
+        ),
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        help=("Suppresses logging of produced log files to " + str(Path("log/*"))),
+        action="store_true",
+    )
+    args = parser.parse_args()
+    log = not args.quiet
+
+    if args.corpus_path is None:
+        dfs = read_data(["dev", "train"], log=log)
+    else:
+        dfs = read_data(["dev", "train"], args.corpus_path, log)
+
+    dev_docs = preprocess_raw(dfs["dev"])
+    train_docs = preprocess_raw(dfs["train"])
+    dev = dfs["dev"]
+    train = dfs["train"]
+
+    dev_predics = depFit_Predict(dev_docs)
+    train_predics = depFit_Predict(train_docs)
+
+    dev["depPredics"] = dev_predics
+    train["depPredics"] = train_predics
+    dev_train = dev.append(train)
+
+    if log:
+        for df, name in zip([dev, train], ["dev", "train"]):
+            log_frame(df, name=name, tag="depTFIDF_predics")
+
+    for df, name in zip([dev, train, dev_train], ["Dev", "Train", "Dev-Train"]):
+        acc = accuracy(df["depPredics"], df["gold"])
+        _rmse = rmse(df["depPredics"], df["gold"])
+        pear_corr = pearsonr(list(df["depPredics"]), list(df["gold"]))
+        cols = ["RMSE", "Accuracy", "Pearson's R", "Pearson's R p-val"]
+        vals = [_rmse, acc, pear_corr[0], pear_corr[1]]
+        stats = pd.DataFrame(list(df["depPredics"]), columns=["Predic_Label"]).describe()
+        extra = pd.DataFrame(vals, index=cols, columns=["Predic_Label"])
+        print(f"\n{name} Gold stats: ")
+        print(pd.DataFrame(list(df["gold"]), columns=["Gold_Label"]).describe().T)
+        print(f"\n{name} depTFIDF Model Prediction stats: ")
+        print(stats.append(extra).T)
+        print("\n------")
+
+    for df, name in zip([dev, train, dev_train], ["Dev", "Train", "Dev-Train"]):
+        print(f"\n{name} Prediction Metrics:")
+        metrics = get_scores(list(df["depPredics"]), list(df["gold"]))
+        print(json.dumps(metrics, indent=2))
 
 
 if __name__ == "__main__":
     main()
-
