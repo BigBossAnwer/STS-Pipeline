@@ -180,9 +180,7 @@ def depFit_Predict(docs):
             scaled = (prediction * 4) + 1
             predictions.append(scaled)
 
-    predictions = np.round(predictions)
-
-    return predictions.tolist()
+    return predictions
 
 
 def main():
@@ -206,22 +204,22 @@ def main():
     args = parser.parse_args()
     log = not args.quiet
 
-    if args.corpus_path is None:
-        dfs = read_data(["dev", "train"], log=log)
-    else:
-        dfs = read_data(["dev", "train"], args.corpus_path, log)
+    dfs = read_data(["dev", "train"], args.corpus_path, log)
+    dev = dfs["dev"]
+    train = dfs["train"]
+    dev_train = dev.append(train)
 
     dev_docs = preprocess_raw(dfs["dev"])
     train_docs = preprocess_raw(dfs["train"])
-    dev = dfs["dev"]
-    train = dfs["train"]
+    dev_train_docs = dev_docs + train_docs
 
     dev_predics = depFit_Predict(dev_docs)
     train_predics = depFit_Predict(train_docs)
+    dev_train_predics = depFit_Predict(dev_train_docs)
 
-    dev["depPredics"] = dev_predics
-    train["depPredics"] = train_predics
-    dev_train = dev.append(train)
+    dev["depPredics"] = np.round(dev_predics)
+    train["depPredics"] = np.round(train_predics)
+    dev_train["depPredics"] = np.round(dev_train_predics)
 
     if log:
         for df, name in zip([dev, train], ["dev", "train"]):

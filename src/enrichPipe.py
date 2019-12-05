@@ -117,10 +117,7 @@ def main():
     args = parser.parse_args()
     log = not args.quiet
 
-    if args.corpus_path is None:
-        dfs = read_data(["dev", "train", "test"], log=log)
-    else:
-        dfs = read_data(["dev", "train", "test"], args.corpus_path, log)
+    dfs = read_data(["dev", "train", "test"], args.corpus_path, log)
 
     for frame in dfs.keys():
         preprocess(dfs[frame], name=frame, tag="enriched", log=log)

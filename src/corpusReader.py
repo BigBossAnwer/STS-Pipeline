@@ -6,6 +6,8 @@ import pandas as pd
 
 
 def read_data(which_sets, corpus_path="data", log=False):
+    if not corpus_path:
+        corpus_path = "data"
     data_files = {"dev": "dev-set.txt", "train": "train-set.txt", "test": "test-set.txt"}
     data_frames = {}
 
@@ -168,10 +170,7 @@ def main():
     args = parser.parse_args()
     log = not args.quiet
 
-    if args.corpus_path is None:
-        dfs = read_data(["dev", "test", "train"], log=log)
-    else:
-        dfs = read_data(["dev", "test", "train"], args.corpus_path, log)
+    dfs = read_data(["dev", "test", "train"], args.corpus_path, log)
 
     for frame in dfs.keys():
         frame_cap = frame[0].upper() + frame[1:]
