@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from sts_wrldom.utils import log_frame
+
 
 def read_data(which_sets, corpus_path="data", log=False):
     if not corpus_path:
@@ -132,18 +134,6 @@ def read_data(which_sets, corpus_path="data", log=False):
         return next(iter(data_frames.values()))  # returns first (and only) dataframe
     else:
         return data_frames
-
-
-def log_frame(df, name, tag):
-    try:
-        Path("log").mkdir(exist_ok=True)
-        df.to_csv(str(Path("log", name + "_" + tag + ".csv")))
-
-    except IOError:
-        print("Error: Log write failed")
-    except:
-        print("Unexpected error: ", sys.exc_info()[0])
-        raise
 
 
 def main():

@@ -8,72 +8,12 @@ import scipy.sparse
 from scipy.stats import pearsonr
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from corpusReader import log_frame, read_data
-from enrichPipe import preprocess_raw
+from sts_wrldom.corpusReader import read_data
+from sts_wrldom.enrichPipe import preprocess_raw
+from sts_wrldom.utils import accuracy, get_scores, log_frame, rmse
 
 
-def rmse(predictions, targets):
-    assert len(predictions) == len(targets)
-    return np.sqrt(((predictions - targets) ** 2).mean())
-
-
-def accuracy(predictions, targets):
-    assert len(predictions) == len(targets)
-    count_pos = 0
-    for predic, gold in zip(predictions, targets):
-        if predic == gold:
-            count_pos += 1
-
-    return float(count_pos) / len(targets)
-
-
-# Scraped from evaluation.py, returns recall, precision, f1
-def get_scores(predictions, targets, prec=3):
-    label_set = [1, 2, 3, 4, 5]
-    classification_report = {}
-    classification_report["micro"] = {"recall": 0.0, "precision": 0.0, "fscore": 0.0}
-    for label in label_set:
-        classification_report[label] = {"recall": 0.0, "precision": 0.0, "fscore": 0.0}
-        tp, fp, fn = 0, 0, 0
-        for idx, gold in enumerate(targets):
-            prediction = predictions[idx]
-            if gold == prediction:
-                if prediction == label:
-                    tp += 1
-            else:
-                if prediction == label:
-                    fp += 1
-                else:
-                    fn += 1
-        try:
-            recall = float(tp) / (tp + fn)
-        except ZeroDivisionError:
-            recall = 0.0
-        try:
-            precision = float(tp) / (tp + fp)
-        except ZeroDivisionError:
-            precision = 0.0
-        try:
-            fscore = 2 * precision * recall / (precision + recall)
-        except ZeroDivisionError:
-            fscore = 0.0
-        classification_report[label]["recall"] = round(recall, prec)
-        classification_report[label]["precision"] = round(precision, prec)
-        classification_report[label]["fscore"] = round(fscore, prec)
-        classification_report["micro"]["recall"] += recall
-        classification_report["micro"]["precision"] += precision
-        classification_report["micro"]["fscore"] += fscore
-
-    for key in classification_report["micro"].keys():
-        classification_report["micro"][key] /= len(label_set)
-        classification_report["micro"][key] = round(
-            classification_report["micro"][key], prec
-        )
-
-    return classification_report
-
-
-# Returns a list of lemmas from a doc of Spacy tokens
+# Returns a list of lemmas (str) from a list of Spacy tokens
 def clean_tokens(tokens):
     cleaned_tokens = []
     for token in tokens:
@@ -100,11 +40,13 @@ def tfidf_fit_transform(docs):
     return tfidfer, tfidf_mat, average_tfidf
 
 
+# Returns a list of predicted labels (floats) using our Dependency Tree TFIDF weighted
+#  IoU Model
 def depFit_Predict(docs):
     cleaned_docs = []
     for doc_tuple in docs:
-        # doc_tuple looks like (s1 - spacy processed, s2 - spacy processed, gold)
-        for doc in doc_tuple[:2]:
+        # doc_tuple looks like (s1 - spacy processed, s2 - spacy processed)
+        for doc in doc_tuple:
             cleaned_docs.append(" ".join(clean_tokens(doc)))
 
     tfidfer, tfidf_mat, average_tfidf = tfidf_fit_transform(cleaned_docs)
@@ -113,8 +55,8 @@ def depFit_Predict(docs):
     for idx, doc_tuple in enumerate(docs):
         s1 = doc_tuple[0]
         s2 = doc_tuple[1]
-        gold = doc_tuple[2]
-        if s1 is None or s2 is None or gold is None:
+        # gold = doc_tuple[2]
+        if s1 is None or s2 is None:
             print(f"Bad row {idx, doc_tuple}")
         else:
             s1_root = [token for token in s1 if token.dep_ == "ROOT"][0]

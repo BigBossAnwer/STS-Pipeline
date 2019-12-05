@@ -4,7 +4,9 @@ from pathlib import Path
 import spacy
 from spacy import displacy
 
-from corpusReader import log_frame, read_data
+from sts_wrldom.corpusReader import read_data
+from sts_wrldom.utils import log_frame
+
 
 # Enriches a dataframe such that all documents (s1, s2) have their associated
 # tokens, lemmas, POS tags and spacy docs grafted in as columns
@@ -65,15 +67,13 @@ def preprocess_raw(df):
     parse_cols = ["s1", "s2"]
     s1_docs = []
     s2_docs = []
-    golds = []
     for col in parse_cols:
         parse_fail = 0
 
-        for idx, doc in enumerate(nlp.pipe(df[col].values, batch_size=50, n_threads=4)):
+        for doc in nlp.pipe(df[col].values, batch_size=50, n_threads=4):
             if doc.is_parsed:
                 if col == "s1":
                     s1_docs.append(doc)
-                    golds.append(df["gold"].iloc[idx])
                 else:
                     s2_docs.append(doc)
             else:
@@ -82,7 +82,6 @@ def preprocess_raw(df):
                 parse_fail += 1
                 if col == "s1":
                     s1_docs.append(None)
-                    golds.append(None)
                 else:
                     s2_docs.append(None)
 
@@ -90,7 +89,7 @@ def preprocess_raw(df):
 
     print()
 
-    return list(zip(s1_docs, s2_docs, golds))
+    return list(zip(s1_docs, s2_docs))
 
 
 def main():
@@ -140,6 +139,7 @@ def main():
         print("Logging Wordnet Feature Extraction Sample...")
         Path("log").mkdir(exist_ok=True)
         log_path = Path("log", "Task2_WordnetFeatures_Sample.txt")
+
         with log_path.open("w", encoding="utf-8") as out_fh:
             from pywsd import disambiguate
 
