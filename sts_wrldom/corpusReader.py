@@ -145,16 +145,12 @@ def main():
     parser.add_argument(
         "-c",
         "--corpus_path",
-        help=(
-            str(Path("Path/To/Corpus/*-set.txt"))
-            + ", Default: "
-            + str(Path("data/*-set.txt"))
-        ),
+        help=f"{Path('Path/To/Corpus/*-set.txt')}, Default: {Path('data/*-set.txt')}",
     )
     parser.add_argument(
         "-q",
         "--quiet",
-        help=("Suppresses logging of produced log files to " + str(Path("log/*"))),
+        help=f"Suppresses logging of produced log files to: {Path('log/*')}",
         action="store_true",
     )
     args = parser.parse_args()

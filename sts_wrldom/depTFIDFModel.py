@@ -40,8 +40,8 @@ def tfidf_fit_transform(docs):
     return tfidfer, tfidf_mat, average_tfidf
 
 
-# Returns a list of predicted labels (floats) using our Dependency Tree TFIDF weighted
-#  IoU Model
+# Returns a list of predicted labels (floats) using sts_wrldom's Dependency Tree TFIDF 
+#  weighted IoU Model
 def depFit_Predict(docs):
     cleaned_docs = []
     for doc_tuple in docs:
@@ -131,16 +131,12 @@ def main():
     parser.add_argument(
         "-c",
         "--corpus_path",
-        help=(
-            str(Path("Path/To/Corpus/*-set.txt"))
-            + ", Default: "
-            + str(Path("data/*-set.txt"))
-        ),
+        help=f"{Path('Path/To/Corpus/*-set.txt')}, Default: {Path('data/*-set.txt')}",
     )
     parser.add_argument(
         "-q",
         "--quiet",
-        help=("Suppresses logging of produced log files to " + str(Path("log/*"))),
+        help=f"Suppresses logging of produced log files to: {Path('log/*')}",
         action="store_true",
     )
     args = parser.parse_args()
@@ -159,9 +155,9 @@ def main():
     train_predics = depFit_Predict(train_docs)
     dev_train_predics = depFit_Predict(dev_train_docs)
 
-    dev["depPredics"] = np.round(dev_predics)
-    train["depPredics"] = np.round(train_predics)
-    dev_train["depPredics"] = np.round(dev_train_predics)
+    dev["depPredics"] = [int(elem) for elem in np.round(dev_predics)]
+    train["depPredics"] = [int(elem) for elem in np.round(train_predics)]
+    dev_train["depPredics"] = [int(elem) for elem in np.round(dev_train_predics)]
 
     if log:
         for df, name in zip([dev, train], ["dev", "train"]):

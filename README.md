@@ -29,7 +29,7 @@ Within the desired venv, install project requirements with:
 pip install -U -r requirements.txt
 ```
 
-Install the following NLTK wordnet data (again making sure to use the desired venv):
+Install the following NLTK WordNet data (again making sure to use the desired venv):
 
 ````bash
 python -m nltk.downloader wordnet

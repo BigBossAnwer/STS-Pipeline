@@ -101,16 +101,12 @@ def main():
     parser.add_argument(
         "-c",
         "--corpus_path",
-        help=(
-            str(Path("Path/To/Corpus/*-set.txt"))
-            + ", Default: "
-            + str(Path("data/*-set.txt"))
-        ),
+        help=f"{Path('Path/To/Corpus/*-set.txt')}, Default: {Path('data/*-set.txt')}",
     )
     parser.add_argument(
         "-q",
         "--quiet",
-        help=("Suppresses logging of produced log files to " + str(Path("log/*"))),
+        help=f"Suppresses logging of produced log files to: {Path('log/*')}",
         action="store_true",
     )
     args = parser.parse_args()
@@ -136,9 +132,9 @@ def main():
     # Interleaves lists s1 and s2: [s1[0], s2[0], s1[1], s2[1]...]
     docs = [val for pair in zip(s1_docs, s2_docs) for val in pair]
     if log:
-        print("Logging Wordnet Feature Extraction Sample...")
+        print("Logging WordNet Feature Extraction Sample...")
         Path("log").mkdir(exist_ok=True)
-        log_path = Path("log", "Task2_WordnetFeatures_Sample.txt")
+        log_path = Path("log", "Task2_WordNetFeatures_Sample.txt")
 
         with log_path.open("w", encoding="utf-8") as out_fh:
             from pywsd import disambiguate

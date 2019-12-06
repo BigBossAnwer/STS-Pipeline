@@ -8,7 +8,7 @@ import pandas as pd
 def log_frame(df, name, tag):
     try:
         Path("log").mkdir(exist_ok=True)
-        df.to_csv(str(Path("log", name + "_" + tag + ".csv")))
+        df.to_csv(str(Path("log", name + "_" + tag + ".csv")), index=False)
 
     except IOError:
         print("Error: Log write failed")
