@@ -14,21 +14,40 @@ from sts_wrldom.pawarModel import disambiguate_pipe, pawarFit_Predict
 from sts_wrldom.utils import accuracy, get_scores, log_frame, rmse, write_results
 
 
-# Returns a weighted combination of all sub models
-#  weights defined by hyper-parameter testing in ensembleParamTest.ipynb
-def ensemble_head(dep_preds, pawar_preds, embed_preds=None):
+def ensemble_head(dep_preds, pawar_preds, embed_preds=None, **kwargs):
+    """Returns a weighted combination of all sts_wrldom sub-models. Weights were defined
+    by grid-search testing (see STS-Project/notebooks/ensembleParamTest.ipynb).
+    
+    Args:
+        dep_preds (list): a list of predicted labels (float) in range [1, 5] from the
+            Dependency Tree TFIDF model (depTFIDFModel).
+        pawar_preds (list): a list of predicted labels (float) in range [1, 5] from the
+            WordNet Features / Pawar model (pawarModel).
+        embed_preds (list, optional): a list of predicted labels (float) in range [1, 5] 
+            from the Universal Sentence Encoder model
+            (see STS-Project/notebooks/embedModel-Dev-Train-Test.ipynb). Defaults to None.
+        **kwargs: allows custom weight setting:
+            'a' is associated with dep_preds,
+            'b' with pawar_preds,
+            'c' with embed_preds
+    
+    Returns:
+        list: a list of rounded ensemble predictions (ints) in range [1, 5].
+    """
+    opts = kwargs.keys()
     ensemble_predics = []
+
     if embed_preds is not None:
-        a = 0.4
-        b = 0.1
-        c = 0.5
+        a = 0.4 if "a" not in opts else kwargs["a"]
+        b = 0.1 if "b" not in opts else kwargs["b"]
+        c = 0.5 if "c" not in opts else kwargs["c"]
 
         for dep, pawar, embed in zip(dep_preds, pawar_preds, embed_preds):
             weighting = (dep * a) + (pawar * b) + (embed * c)
             ensemble_predics.append(int(np.round(weighting)))
     else:
-        a = 0.95
-        b = 0.05
+        a = 0.95 if "a" not in opts else kwargs["a"]
+        b = 0.05 if "b" not in opts else kwargs["b"]
 
         for dep, pawar in zip(dep_preds, pawar_preds):
             weighting = (dep * a) + (pawar * b)

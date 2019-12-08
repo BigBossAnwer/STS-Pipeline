@@ -13,8 +13,15 @@ from sts_wrldom.enrichPipe import preprocess_raw
 from sts_wrldom.utils import accuracy, get_scores, log_frame, rmse
 
 
-# Returns a list of lemmas (str) from a list of Spacy tokens
 def clean_tokens(tokens):
+    """Returns a list of lemmas from a list of spaCy tokens
+    
+    Args:
+        tokens (list(spaCy_token)): the list of spaCy tokens to pull lemmas from
+    
+    Returns:
+        list: a list of lemmas corresponding to the tokens passed in
+    """
     cleaned_tokens = []
     for token in tokens:
         if not token.is_punct:
@@ -25,11 +32,21 @@ def clean_tokens(tokens):
     return cleaned_tokens
 
 
-# Returns a 3-tuple (tfidfer, tfidf_mat, average_tfidf):
-# tfidfer = the object with access to the fit vocabulary,
-# tfidf_mat = the scipy sparse matrix tfidf matrix with (docs, vocab) dimension
-# average_tidf = the average tfidf value over all documents, over all words
 def tfidf_fit_transform(docs):
+    """Returns a 3-tuple containing the sklearn TfidfVectorizer object, the associated
+    TFIDF matrix and the average TFIDF value over all non-zero TFIDF values
+    
+    Args:
+        docs (list): a list of str, where every element is the plain text document, 
+            TFIDF values are computed on this corpus
+    
+    Returns:
+        tuple: a 3-tuple like
+            tuple[0] (sklearn.feature_extraction.text.TfidfVectorizer): object used to 
+                compute TFIDF values for the corpus
+            tuple[1] (scipy.sparse.csr.csr_matrix): TFIDF matrix with shape (docs, vocab)
+            tuple[2] (numpy.float64): the average non-zero TFIDF value
+    """
     tfidfer = TfidfVectorizer(min_df=0, sublinear_tf=True, lowercase=False)
     tfidf_mat = tfidfer.fit_transform(docs)
     (x, _, z) = scipy.sparse.find(tfidf_mat)
@@ -40,9 +57,16 @@ def tfidf_fit_transform(docs):
     return tfidfer, tfidf_mat, average_tfidf
 
 
-# Returns a list of predicted labels (floats) using sts_wrldom's Dependency Tree TFIDF 
-#  weighted IoU Model
 def depFit_Predict(docs):
+    """Returns a list of predicted labels using sts_wrldom's Dependency Tree + TFIDF
+    weighted bag of words IoU model
+    
+    Args:
+        docs (list): a list of (s1, s2) spaCy processed doc tuples
+    
+    Returns:
+        list: a list of float prediction labels in range [1, 5]
+    """
     cleaned_docs = []
     for doc_tuple in docs:
         # doc_tuple looks like (s1 - spacy processed, s2 - spacy processed)
@@ -106,8 +130,8 @@ def depFit_Predict(docs):
                     total_raw_tfidf.append(average_tfidf)
             total_raw_score = np.sum(total_raw_tfidf)
 
-            # Use full lemmatized sentence TFIDF prediction in cases of "low" dependency tree
-            # overlap probability. This"low"/"confidence_threshold" and weighting of
+            # Use full lemmatized sentence TFIDF prediction in cases of "low" dependency
+            # tree overlap probability. This "low"/"confidence_threshold" and weighting of
             # models in confident cases defined by hyper-parameter testing on the
             # dev + train set in depParamTest.py
             confidence_threshold = 0.67
@@ -126,7 +150,10 @@ def depFit_Predict(docs):
 
 
 def main():
-    description = "TFIDF Weighted Dependency Tree Coverage STS Model"
+    description = (
+        "TFIDF Weighted Dependency Tree Coverage STS Model. Running this "
+        "standalone amounts to testing"
+    )
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "-c",

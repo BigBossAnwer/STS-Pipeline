@@ -12,6 +12,7 @@ from sts_wrldom.utils import accuracy, get_scores, log_frame, rmse
 
 
 def main():
+    """Parameter testing for Dependency Tree + TFIDF Weights Model"""
     dfs = read_data(["dev", "train"])
     dev = dfs["dev"]
     train = dfs["train"]

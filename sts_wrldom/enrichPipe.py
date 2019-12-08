@@ -8,9 +8,19 @@ from sts_wrldom.corpusReader import read_data
 from sts_wrldom.utils import log_frame
 
 
-# Enriches a dataframe such that all documents (s1, s2) have their associated
-# tokens, lemmas, POS tags and spacy docs grafted in as columns
 def preprocess(df, name=None, tag=None, log=False):
+    """Enriches a dataframe (inplace) such that str columns: [s1, s2] have 
+    their associated tokens, lemmas, POS tags and spaCy docs concatenated in as columns 
+    with names:
+    s1_tokens, s1_lemmas, s1_pos, s1_docs (likewise for s2)
+    
+    Args:
+        df: the dataframe to be inplace enriched 
+        name (str, optional): the name for the dataframe .csv file. Defaults to None.
+        tag (str, optional): the tag for the logged dataframe .csv file . Defaults to None.
+        log (bool, optional): specifies logging of the enriched dataframe.
+            Defaults to False.
+    """
     nlp = spacy.load("en_core_web_sm")
 
     if name is None:
@@ -54,12 +64,19 @@ def preprocess(df, name=None, tag=None, log=False):
             log_frame(df.drop(columns=["s1_docs", "s2_docs"]), name=name, tag=tag)
     print()
 
-    return df
 
-
-# Simply returns spacy processed documents as a list of tuples=(s1, s2, gold)
-# Saves multiple passes through the spacy NLP pipe / df overhead
 def preprocess_raw(df):
+    """Returns spaCy processed documents as a list of spaCy doc tuples. 
+    Saves multiple passes through the spaCy NLP pipe in sts_wrldom architecture.
+    
+    Args:
+        df: the source dataframe with columns: [s1, s2]
+    
+    Returns:
+        list(tuple(spaCy_doc, spaCy_doc)): a list of 2-tuples where every tuple in the 
+        list corresponds to a row in the dataframe, and tuple[0] corresponds to s1, 
+        tuple[1] to s2.
+    """
     nlp = spacy.load("en_core_web_sm")
 
     print("Enriching data from dataframe...")
@@ -95,7 +112,7 @@ def preprocess_raw(df):
 def main():
     description = (
         f"Pipeline for NLP enrichment as specified by the dataframe structure found "
-        f"in {Path('src/corpusReader.py')}"
+        f"in {Path('src/corpusReader.py')}. Running this standalone amounts to testing"
     )
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(

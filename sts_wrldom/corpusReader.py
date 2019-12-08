@@ -8,6 +8,26 @@ from sts_wrldom.utils import log_frame
 
 
 def read_data(which_sets, corpus_path="data", log=False):
+    """Returns the specified data sets as dataframes
+
+    Args:
+        which_sets (list): the specified data sets.
+            ex: ["dev", "train"] or ["train"]
+        corpus_path (str, optional): path to the parent dir housing the data.
+        log (bool, optional): specifies logging of the produced dataframe as 
+            a .csv to "./log"
+
+    Returns:
+        if only one data set was specified:
+            the data set specified as a dataframe
+        else:
+            a dictionary with all the requested data sets as dataframes like:
+            {
+                "dev": dev_df,
+                "train": train_df,
+                ...
+            }
+    """
     if not corpus_path:
         corpus_path = "data"
     data_files = {"dev": "dev-set.txt", "train": "train-set.txt", "test": "test-set.txt"}
@@ -139,7 +159,7 @@ def read_data(which_sets, corpus_path="data", log=False):
 def main():
     description = (
         f"Eats project data as specified by the structure found in "
-        f"{Path('data/*-set.txt')}"
+        f"{Path('data/*-set.txt')}. Running this standalone amounts to testing"
     )
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(

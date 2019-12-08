@@ -13,28 +13,69 @@ from sts_wrldom.corpusReader import read_data
 from sts_wrldom.utils import accuracy, get_scores, log_frame, rmse
 
 
-# Returns a list of predicted labels (floats) utilizing the WordNet semantic tree
-#  as laid out in Pawar and Mago, 2018 (http://arxiv.org/abs/1802.05667)
-def pawarFit_Predict(docs_disam):
-    predictions = []
-    for s1_disam, s2_disam in docs_disam:
-        s1_tups = [(word, syn) for (word, syn) in s1_disam if syn]
-        s2_tups = [(word, syn) for (word, syn) in s2_disam if syn]
+def disambiguate_pipe(df, name=None):
+    """Returns a list of 2-tuples (s1_disam, s2_disam), for each sentence pair in the 
+    dataframe, where each tuple is a list of disambiguated 2-tuples (word, synset).
+    
+    Args:
+        df: the source dataframe with columns: [s1, s2].
+        name ([type], optional): the name of the dataframe. Defaults to None.
+    
+    Returns:
+        list: a list of the disambiguated sentence pairs like:
+            [
+                (
+                    tuple[0], for s1
+                    [
+                        (word:str, wn_synset),
+                        (word:str, wn_synset),
+                        ...
+                    ],
+                    tuple[1], for s2
+                    [
+                        (word:str, wn_synset),
+                        (word:str, wn_synset),
+                        ...
+                    ]
+                ),
+                ...
+            ]
+    """
+    from pywsd import disambiguate, max_similarity
+    from pywsd.lesk import adapted_lesk
 
-        predict = sentence_similarity(s1_tups, s2_tups)
-        predictions.append(predict)
+    print(f"Disambiguating {name}...")
+    disambiguated = []
+    for s1, s2, in zip(df["s1"], df["s2"]):
+        s1_disam = disambiguate(s1, adapted_lesk, prefersNone=True)
+        s2_disam = disambiguate(s2, adapted_lesk, prefersNone=True)
+        disambiguated.append((s1_disam, s2_disam))
 
-    return predictions
+    return disambiguated
 
 
-# Returns a two tuple, (s1_v, s2_v) which are vector representations of the
-#  input sentences using the approach laid out in Pawar and Mago, 2018
 def word_similarity(s1, s2, alpha=0.2, beta=0.45):
+    """Returns a 2-tuple, (s1_vec, s2_vec) which are vector representations of the
+    input sentences using the approach laid out in (Pawar, 2018).
+    
+    Args:
+        s1 (list): a list of (word:str, wn_synset) tuples.
+        s2 (list): a list of (word:str, wn_synset) tuples.
+        alpha (float, optional): the parameter that controls the shape of WordNet node to 
+            node shortest path reward. Defaults to 0.2 as defined in (Pawar, 2018).
+        beta (float, optional): the parameter that controls the shape of the WordNet node 
+            to node subsumer depth reward. Defaults to 0.45 as defined in (Pawar, 2018).
+    
+    Returns:
+        tuple: a tuple containing the word similarity vectors associated with s1 and s2.
+            tuple[0] (numpy.array): s1 word similarity vector.
+            tuple[1] (numpy.array): s2 word similarity vector.
+    """
     wna = WordNetPaths()
     s1_dict = OrderedDict()
     s2_dict = OrderedDict()
     all_syns = s1 + s2
-    for (word, syn) in all_syns:
+    for (word, _) in all_syns:
         s1_dict[word] = [0.0]
         s2_dict[word] = [0.0]
 
@@ -70,9 +111,21 @@ def word_similarity(s1, s2, alpha=0.2, beta=0.45):
     return s1_v, s2_v
 
 
-# Returns a predicted label for the sentence pair (as disambiguated (word, synset) lists)
-#  passed in. The predicted label is a single float in the range [1, 5]
 def sentence_similarity(s1_tups, s2_tups, benchmark_similarity=0.8025, gamma=1.8):
+    """Returns a predicted label for the sentence pair (as disambiguated (word, synset) lists)
+    passed in. The predicted label is a single float in the range [1, 5].
+    
+    Args:
+        s1_tups (list): a list of disambiguated (word:str, wn_synset) tuples.
+        s2_tups (list): a list of disambiguated (word:str, wn_synset) tuples.
+        benchmark_similarity (float, optional): A confidence threshold on word_similarity 
+            values. Defaults to 0.8025 as defined in (Pawar, 2018).
+        gamma (float, optional): A normalization factor used in the vector normalization.
+            Defaults to 1.8 as defined in (Pawar, 2018).
+    
+    Returns:
+        float: the predicted label in range [1, 5].
+    """
     s1_v, s2_v = word_similarity(s1_tups, s2_tups)
 
     c1 = 0
@@ -98,24 +151,35 @@ def sentence_similarity(s1_tups, s2_tups, benchmark_similarity=0.8025, gamma=1.8
     return scaled
 
 
-# Returns a list of two tuples (s1_disam, s2_disam) for each sentence pair in the
-# dataframe, where each tuple is a list of disambiguated two tuples (word, synset)
-def disambiguate_pipe(df, name=""):
-    from pywsd import disambiguate, max_similarity
-    from pywsd.lesk import adapted_lesk
+def pawarFit_Predict(docs_disam):
+    """Returns a list of predicted labels (float) utilizing WordNet Semantic Tree features
+    as laid out in (Pawar, 2018 - http://arxiv.org/abs/1802.05667).
+    
+    Args:
+        docs_disam (list): a list of 2-tuples (s1, s2) containing a list of disambiguated 
+            (word, wn_synset) tuples 
+            (see pawarModel.disambiguate_pipe for this pre-processing).
 
-    print(f"Disambiguating {name}...")
-    disambiguated = []
-    for s1, s2, in zip(df["s1"], df["s2"]):
-        s1_disam = disambiguate(s1, adapted_lesk, prefersNone=True)
-        s2_disam = disambiguate(s2, adapted_lesk, prefersNone=True)
-        disambiguated.append((s1_disam, s2_disam))
+    
+    Returns:
+        list: a list of predicted labels (float) in range [1, 5].
+    """
+    predictions = []
+    for s1_disam, s2_disam in docs_disam:
+        s1_tups = [(word, syn) for (word, syn) in s1_disam if syn]
+        s2_tups = [(word, syn) for (word, syn) in s2_disam if syn]
 
-    return disambiguated
+        predict = sentence_similarity(s1_tups, s2_tups)
+        predictions.append(predict)
+
+    return predictions
 
 
 def main():
-    description = "WordNet Semantic Tree STS Model (Pawar, 2018)"
+    description = (
+        "WordNet Semantic Tree STS Model (Pawar, 2018). Running this standalone"
+        "amounts to testing"
+    )
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "-c",
