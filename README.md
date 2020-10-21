@@ -1,6 +1,14 @@
-# STS-Project
+# Semantic Textual Similarity Pipeline
 
-Semantic Textual Similarity project for CS 6320 - Natural Language Processing - Fall 2019, UT Dallas
+A text-based, sentence-pair Semantic Similarity pipeline written in Python that utilizes Natural Language Processing via spaCy & pywsd, Machine and Deep Learning via scikit-learn & TensorFlow Hub models *(Cer, 2018)*, as well as heuristic approaches *(Pawar, 2018)* to create an ensemble model that scores the semantic similarity of two English sentences on an integer scale between 1 (not very similar) and 5 (highly similar).
+
+Input is given as a tab delimited corpus of unscored sentence pairs and output is produced as a tab delimited table of scores. See the [dev-set](data/dev-set.txt) for a sample input and the [dev-set predictions](results/dev_ensemblePredic.txt) for a sample output.
+
+For specific base as well as ensemble model metrics and error analysis, see the [corresponding notebook](notebooks).
+
+## Pipeline Architecture
+
+![STS Pipeline Architecture](arch.png)
 
 ## Prerequisites
 
@@ -13,8 +21,10 @@ Semantic Textual Similarity project for CS 6320 - Natural Language Processing - 
 
 ```bash
 which pip
-> /Path/to/desired_venv/bin/pip
+/Path/to/desired_venv/bin/pip
 ```
+
+Which should point to the desired env
 
 Alternatively, invoke the desired env directly:
 
@@ -51,7 +61,7 @@ Notebooks dependent on Pywsd:
 * pawarModel-Test.ipynb
 
 As of Pywsd 1.2.4 (future releases may render this patch obsolete), a bug exists in Pywsd that will cause word sense disambiguation using ```pywsd.max_similarity``` to fail with an IndexError.
-To patch this, find the Pywsd module in the site packages of the env that it was installed in / the env that the STS-Project will be run within:
+To patch this, find the Pywsd module in the site packages of the env that it was installed in / the env that the STS-Pipeline will be run within:
 
 Example location:
 
@@ -109,7 +119,7 @@ def max_similarity(context_sentence: str, ambiguous_word: str, option="path",
     return result[0][1] if best else result
 ```
 
-Save the edited file. All STS-Project programs / notebooks dependent on Pywsd should now run without issue.
+Save the edited file. All STS-Pipeline programs / notebooks dependent on Pywsd should now run without issue.
 
 ### Before running programs / notebooks, ensure environment variables are correct:
 
@@ -117,14 +127,14 @@ Verify that the ```PYTHONPATH``` system variable includes the ```sts_wrldom``` d
 
 ```bash
 echo $PYTHONPATH
-> /Path/to/Projects/STS-Project/sts_wrldom
+> /Path/to/Projects/STS-Pipeline/sts_wrldom
 ```
 
-Ensure that the working directory of the terminal the program will run in is the STS-Project root directory. For example:
+Ensure that the working directory of the terminal the program will run in is the STS-Pipeline root directory. For example:
 
 ```bash
 pwd
-> /Path/to/Projects/STS-Project
+> /Path/to/Projects/STS-Pipeline
 ```
 
 ## Usage
@@ -137,15 +147,17 @@ Standalone programs are:
 * pawarModel
 * ensembleModels
 
-All programs can run with no command line options, however all programs offer command line options. For available options, use:
+All programs can run with no command line options, however all programs offer command line options. Use:
 
 ```bash
 python <program>.py -h
 ```
 
+for available options.
+
 ## Warning:
 
-```STS-Project/notebooks/embedModel-Dev-Train-Test.ipynb``` was built and run directly inside Google Colabs. Avoid running it in a local environment as it has some ```pip3``` installs that might clutter the local environment
+```STS-Pipeline/notebooks/embedModel-Dev-Train-Test.ipynb``` was built and run directly inside Google Colabs. Avoid running it in a local environment as it has some ```pip3``` installs that might clutter the local environment
 
 ## References:
 
